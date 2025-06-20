@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Book Room</title>
+</head>
+<body>
+  <h1>Book {{ room }}</h1>
+  <p>Date: {{ date }}</p>
+  <p>Time: {{ time }}</p>
+
+  <form method="POST">
+    <label>Your name:</label>
+    <input type="text" name="name" required><br>
+
+    <label>Phone number:</label>
+    <input type="text" name="phone" required><br>
+
+    <label>Number of people:</label>
+    <input type="number" name="people" min="1" required><br>
+
+    <button type="submit">Confirm Booking</button>
+  </form>
+
+  <p><a href="{{ url_for('available') }}">⬅ Back to Available Rooms</a></p>
+</body>
+</html>

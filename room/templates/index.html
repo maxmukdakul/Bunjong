@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Room List</title>
+</head>
+<body>
+  <h1>Welcome {{ session.username }} (Role: {{ session.role }})</h1>
+  <p><a href="{{ url_for('logout') }}">Logout</a></p>
+
+  <h2>Select a Room:</h2>
+  <ul>
+    {% for i in range(1, 11) %}
+      <li><a href="{{ url_for('room', room_number=i) }}">Room {{ i }}</a></li>
+    {% endfor %}
+  </ul>
+
+  <p><a href="{{ url_for('search') }}">🔍 Search Room Bookings by Date</a></p>
+  <p><a href="{{ url_for('available') }}">🟢 Check Available Rooms</a></p>
+
+</body>
+</html>

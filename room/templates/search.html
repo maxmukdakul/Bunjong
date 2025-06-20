@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Search Bookings</title>
+</head>
+<body>
+  <h1>Search Room Bookings by Date</h1>
+
+  <form method="POST">
+    Date: <input type="date" name="date" required>
+    <button type="submit">Search</button>
+  </form>
+
+  {% if results %}
+    <h2>Results:</h2>
+    <table border="1">
+      <tr>
+        <th>Date</th>
+        <th>Name</th>
+        <th>Room</th>
+        <th>Phone Number</th>
+        <th>People</th>
+        <th>Time</th>
+      </tr>
+      {% for row in results %}
+        <tr>
+          <td>{{ row.date }}</td>
+          <td>{{ row.name }}</td>
+          <td>{{ row.room }}</td>
+          <td>{{ row.phone_num }}</td>
+          <td>{{ row.people_num }}</td>
+          <td>{{ row.time }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% elif request.method == 'POST' %}
+    <p>No bookings found for that date.</p>
+  {% endif %}
+
+  <p><a href="{{ url_for('index') }}">Back to Home</a></p>
+</body>
+</html>
