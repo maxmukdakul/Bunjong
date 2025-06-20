@@ -133,23 +133,35 @@ def available():
 
 @app.route('/book', methods=['GET', 'POST'])
 def book_room():
-    if 'username' not in session or session['role'] != 'admin':
-        return "Access denied", 403
+    # Allow any logged-in user to book
+    if 'username' not in session:
+        return redirect(url_for('login'))
 
     room = request.args.get('room')
     date = request.args.get('date')
     time = request.args.get('time')
+
+    if not room or not date or not time:
+        return "Missing booking information. Please start from the available rooms page.", 400
 
     if request.method == 'POST':
         name = request.form['name']
         phone = request.form['phone']
         people = request.form['people']
 
+        booking_data = [date, name, room, phone, people, time]
+        file_exists = os.path.isfile('bookings.csv')
+        write_header = not file_exists or os.stat('bookings.csv').st_size == 0
+
         with open('bookings.csv', 'a', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow([date, name, room, phone, people, time])
+            if write_header:
+                writer.writerow(['date', 'name', 'room', 'phone_num', 'people_num', 'time'])
+            writer.writerow(booking_data)
 
         return redirect(url_for('available'))
+
+    return render_template('book_form.html', room=room, date=date, time=time)
 
     return render_template('book_form.html', room=room, date=date, time=time)
 

@@ -4,7 +4,40 @@
   <title>Room 3</title>
 </head>
 <body>
-  <h1>Welcome to Room 3</h1>
-  <a href="/">Back to Home</a>
+  <h1>Room 3 Booking Information</h1>
+
+  <form method="POST">
+    <label id="date-label">Select date:</label>
+    <input type="date" name="date" id="date" required>
+    <button type="submit">Show Bookings</button>
+  </form>
+
+
+  {% if date %}
+    <h2>Bookings for Room 3 on {{ date }}</h2>
+
+    {% if results %}
+      <table border="3">
+        <tr>
+          <th>Name</th>
+          <th>Phone Number</th>
+          <th>People</th>
+          <th>Time</th>
+        </tr>
+        {% for row in results %}
+        <tr>
+          <td>{{ row.name }}</td>
+          <td>{{ row.phone_num }}</td>
+          <td>{{ row.people_num }}</td>
+          <td>{{ row.time }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p>No bookings found for Room 3 on {{ date }}.</p>
+    {% endif %}
+  {% endif %}
+
+  <p><a href="{{ url_for('index') }}">⬅ Back to Room List</a></p>
 </body>
 </html>
