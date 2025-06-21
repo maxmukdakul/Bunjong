@@ -133,7 +133,6 @@ def available():
 
 @app.route('/book', methods=['GET', 'POST'])
 def book_room():
-    # Allow any logged-in user to book
     if 'username' not in session:
         return redirect(url_for('login'))
 
@@ -148,20 +147,19 @@ def book_room():
         name = request.form['name']
         phone = request.form['phone']
         people = request.form['people']
+        sales = request.form['sales']   # <-- Get the sales person's name as string
 
-        booking_data = [date, name, room, phone, people, time]
+        booking_data = [date, name, room, phone, people, time, sales]
         file_exists = os.path.isfile('bookings.csv')
         write_header = not file_exists or os.stat('bookings.csv').st_size == 0
 
         with open('bookings.csv', 'a', newline='') as f:
             writer = csv.writer(f)
             if write_header:
-                writer.writerow(['date', 'name', 'room', 'phone_num', 'people_num', 'time'])
+                writer.writerow(['date', 'name', 'room', 'phone_num', 'people_num', 'time', 'sales'])
             writer.writerow(booking_data)
 
         return redirect(url_for('available'))
-
-    return render_template('book_form.html', room=room, date=date, time=time)
 
     return render_template('book_form.html', room=room, date=date, time=time)
 
