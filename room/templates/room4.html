@@ -12,24 +12,26 @@
     <button type="submit">Show Bookings</button>
   </form>
 
-
   {% if date %}
     <h2>Bookings for Room 4 on {{ date }}</h2>
-
     {% if results %}
       <table border="4">
         <tr>
           <th>Name</th>
           <th>Phone Number</th>
           <th>People</th>
+          <th>Slot Type</th>
           <th>Time</th>
+          <th>Sales</th>
         </tr>
         {% for row in results %}
         <tr>
           <td>{{ row.name }}</td>
           <td>{{ row.phone_num }}</td>
           <td>{{ row.people_num }}</td>
+          <td>{{ row.slot_type }}</td>
           <td>{{ row.time }}</td>
+          <td>{{ row.sales }}</td>
         </tr>
         {% endfor %}
       </table>
