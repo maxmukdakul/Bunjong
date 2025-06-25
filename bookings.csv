@@ -1,3 +1,5 @@
-date,name,room,phone_num,people_num,slot_type,time,sales
-2025-06-26,ju,Room 3,0675555555,100,half_morning,08.00-12.00,Ju
-2025-06-26,ju,Room 3,0675555555,50,half_afternoon,13.00-17.00,Ju
+date,name,room,phone_num,people_num,slot_type,time,sales,work_name,remark
+2025-06-26,ju,Room 3,0675555555,100,half_morning,08.00-12.00,Ju,cp,none
+2025-06-26,ju,Room 3,0675555555,50,half_afternoon,13.00-17.00,Ju,cp,none
+2025-06-28,ju,Room 1,0675555555,50,half_morning,08.00-12.00,Ju,Cp,-
+2025-06-27,ju,Room 1,0675555555,50,half_morning,08.00-12.00,Ju,dsjbs,djskec

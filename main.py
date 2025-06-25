@@ -38,13 +38,16 @@ def save_user(username, password, role):
         writer.writerow([username, password, role])
 
 # Save a booking
-def save_booking(date, name, room, phone_num, people_num, slot_type, time, sales):
+def save_booking(date, name, room, phone_num, people_num, slot_type, time, sales, work_name, remark):
     file_exists = os.path.exists(BOOKINGS_FILE)
+    write_header = not file_exists or os.stat(BOOKINGS_FILE).st_size == 0
+
     with open(BOOKINGS_FILE, 'a', newline='') as f:
         writer = csv.writer(f)
-        if not file_exists or os.stat(BOOKINGS_FILE).st_size == 0:
-            writer.writerow(['date', 'name', 'room', 'phone_num', 'people_num', 'slot_type', 'time', 'sales'])
-        writer.writerow([date, name, room, phone_num, people_num, slot_type, time, sales if sales else ""])
+        if write_header:
+            writer.writerow(['date', 'name', 'room', 'phone_num', 'people_num', 'slot_type', 'time', 'sales', 'work_name', 'remark'])
+        writer.writerow([date, name, room, phone_num, people_num, slot_type, time, sales or "", work_name or "", remark if remark else "-"])
+
 
 @app.route('/')
 def home():
@@ -166,6 +169,8 @@ def book_room():
     room = request.args.get('room')
     date = request.args.get('date')
     slot_type = request.args.get('slot_type')
+    work_name = request.form.get('work_name', '')
+    remark = request.form.get('remark', '')
 
     if not room or not date or not slot_type:
         return "Missing booking information. Please start from the available rooms page.", 400
@@ -194,7 +199,7 @@ def book_room():
                                 time_range=time_range, error=error
                             )
 
-        save_booking(date, name, room, phone, people, slot_key, time_range, sales)
+        save_booking(date, name, room, phone, people, slot_key, time_range, sales, work_name, remark)
         return redirect(url_for('index'))
 
     return render_template(
@@ -231,6 +236,8 @@ def edit_booking(booking_id):
         new_sales = request.form['sales']
         new_room = request.form['room']
         new_start, new_end = SLOT_TIMES[new_slot_type]
+        new_work_name = request.form['work_name']
+        new_remark = request.form['remark']
 
         for i, row in enumerate(bookings):
             if i == booking_id:
@@ -249,9 +256,11 @@ def edit_booking(booking_id):
         booking['time'] = new_time
         booking['sales'] = new_sales
         booking['room'] = new_room
+        booking['work_name'] = new_work_name
+        booking['remark'] = new_remark if new_remark else "-"
 
         with open(BOOKINGS_FILE, 'w', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=booking.keys())
+            writer = csv.DictWriter(f, fieldnames=['date', 'name', 'room', 'phone_num', 'people_num', 'slot_type', 'time', 'sales', 'work_name', 'remark'])
             writer.writeheader()
             writer.writerows(bookings)
 
