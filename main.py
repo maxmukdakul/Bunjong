@@ -8,6 +8,13 @@ app.secret_key = 'your_secret_key_here'
 USERS_FILE = 'users.csv'
 BOOKINGS_FILE = 'bookings.csv'
 
+SLOT_TIMES = {
+    'half_morning': ('08.00', '12.00'),
+    'half_afternoon': ('13.00', '17.00'),
+    'fullday': ('08.00', '17.00'),
+    'night': ('18.00', '22.00')
+}
+
 # Load users from CSV
 def load_users():
     users = {}
@@ -151,7 +158,6 @@ def available():
         time_range=time_range
     )
 
-
 @app.route('/book_room', methods=['GET', 'POST'])
 def book_room():
     if 'username' not in session:
@@ -164,7 +170,9 @@ def book_room():
     if not room or not date or not slot_type:
         return "Missing booking information. Please start from the available rooms page.", 400
 
-    time_range = slot_type.split('|')[1]  # extract time part
+    time_range = slot_type.split('|')[1]
+    slot_key = slot_type.split('|')[0]
+    new_start, new_end = SLOT_TIMES[slot_key]
     error = None
 
     if request.method == 'POST':
@@ -173,51 +181,27 @@ def book_room():
         people = request.form['people']
         sales = request.form['sales']
 
-        # Check for double booking
-        is_already_booked = False
         if os.path.exists(BOOKINGS_FILE):
             with open(BOOKINGS_FILE, 'r', newline='') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    if (
-                        row['date'] == date and
-                        row['room'] == room and
-                        row['slot_type'] == slot_type.split('|')[0]
-                    ):
-                        is_already_booked = True
-                        break
+                    if row['date'] == date and row['room'] == room:
+                        existing_start, existing_end = SLOT_TIMES.get(row['slot_type'], ("00.00", "00.00"))
+                        if times_overlap(new_start, new_end, existing_start, existing_end):
+                            error = "This room is already booked at an overlapping time."
+                            return render_template(
+                                'book_form.html', room=room, date=date, slot_type=slot_type,
+                                time_range=time_range, error=error
+                            )
 
-        if is_already_booked:
-            error = "This room is already booked for the selected date and slot type."
-            return render_template(
-                'book_form.html',
-                room=room,
-                date=date,
-                slot_type=slot_type,
-                time_range=time_range,
-                error=error
-            )
-
-        booking_data = [date, name, room, phone, people, slot_type.split('|')[0], time_range, sales]
-        file_exists = os.path.exists(BOOKINGS_FILE)
-        write_header = not file_exists or os.stat(BOOKINGS_FILE).st_size == 0
-
-        with open(BOOKINGS_FILE, 'a', newline='') as f:
-            writer = csv.writer(f)
-            if write_header:
-                writer.writerow(['date', 'name', 'room', 'phone_num', 'people_num', 'slot_type', 'time', 'sales'])
-            writer.writerow(booking_data)
-
+        save_booking(date, name, room, phone, people, slot_key, time_range, sales)
         return redirect(url_for('index'))
 
     return render_template(
-        'book_form.html',
-        room=room,
-        date=date,
-        slot_type=slot_type,
-        time_range=time_range,
-        error=error
+        'book_form.html', room=room, date=date,
+        slot_type=slot_type, time_range=time_range, error=error
     )
+
 
 @app.route('/edit_booking/<int:booking_id>', methods=['GET', 'POST'])
 def edit_booking(booking_id):
@@ -238,7 +222,6 @@ def edit_booking(booking_id):
     error = None
 
     if request.method == 'POST':
-        # Get new values from form
         new_date = request.form['date']
         new_name = request.form['name']
         new_phone = request.form['phone']
@@ -247,30 +230,32 @@ def edit_booking(booking_id):
         new_time = request.form['time']
         new_sales = request.form['sales']
         new_room = request.form['room']
+        new_start, new_end = SLOT_TIMES[new_slot_type]
 
-        # Check if that room is already booked for new date and slot_type (ignore current booking)
         for i, row in enumerate(bookings):
-            if i != booking_id and row['date'] == new_date and row['slot_type'] == new_slot_type and row['room'] == new_room:
-                error = "The selected room is already booked for that date and slot type."
-                break
+            if i == booking_id:
+                continue
+            if row['date'] == new_date and row['room'] == new_room:
+                existing_start, existing_end = SLOT_TIMES.get(row['slot_type'], ("00.00", "00.00"))
+                if times_overlap(new_start, new_end, existing_start, existing_end):
+                    error = "The selected room is already booked at an overlapping time."
+                    return render_template('edit_booking.html', booking=booking, booking_id=booking_id, error=error)
 
-        if not error:
-            # Update booking fields
-            booking['date'] = new_date
-            booking['name'] = new_name
-            booking['phone_num'] = new_phone
-            booking['people_num'] = new_people
-            booking['slot_type'] = new_slot_type
-            booking['time'] = new_time
-            booking['sales'] = new_sales
-            booking['room'] = new_room
+        booking['date'] = new_date
+        booking['name'] = new_name
+        booking['phone_num'] = new_phone
+        booking['people_num'] = new_people
+        booking['slot_type'] = new_slot_type
+        booking['time'] = new_time
+        booking['sales'] = new_sales
+        booking['room'] = new_room
 
-            with open(BOOKINGS_FILE, 'w', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=booking.keys())
-                writer.writeheader()
-                writer.writerows(bookings)
+        with open(BOOKINGS_FILE, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=booking.keys())
+            writer.writeheader()
+            writer.writerows(bookings)
 
-            return redirect(url_for('index'))
+        return redirect(url_for('index'))
 
     return render_template('edit_booking.html', booking=booking, booking_id=booking_id, error=error)
 
@@ -320,6 +305,9 @@ def delete_booking(booking_id):
         writer.writerows(bookings)
 
     return redirect(url_for('booked_rooms'))
+
+def times_overlap(start1, end1, start2, end2):
+    return max(start1, start2) < min(end1, end2)
 
 
 if __name__ == '__main__':
