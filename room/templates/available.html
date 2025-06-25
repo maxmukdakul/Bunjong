@@ -10,26 +10,32 @@
     <label for="date">Select a date:</label>
     <input type="date" name="date" required>
 
-    <label for="time">Select time:</label>
-    <select name="time" required>
-      <option value="09.00-12.00">09.00–12.00</option>
-      <option value="13.00-15.00">13.00–15.00</option>
-      <option value="15.00-18.00">15.00–18.00</option>
+    <label for="slot_type">Select slot type:</label>
+    <select name="slot_type" id="slot_type" required>
+      <option value="half_morning">Half Morning</option>
+      <option value="half_afternoon">Half Afternoon</option>
+      <option value="fullday">Full Day</option>
+      <option value="night">Night</option>
     </select>
+
+    <label for="start_time">From:</label>
+    <input type="text" name="start_time" placeholder="08.00" required>
+
+    <label for="end_time">To:</label>
+    <input type="text" name="end_time" placeholder="12.00" required>
 
     <button type="submit">Search</button>
   </form>
 
-  {% if date and time %}
-    <h2>Available Rooms on {{ date }} at {{ time }}:</h2>
-
+  {% if date and slot_type and start_time and end_time %}
+    <h2>Available Rooms on {{ date }} ({{ slot_type }}) from {{ start_time }} to {{ end_time }}:</h2>
     {% if rooms %}
       <ul>
         {% for room in rooms %}
           <li>
             {{ room }}
             {% if session.role == 'admin' %}
-              - <a href="{{ url_for('book_room', room=room, date=date, time=time) }}">Book this room</a>
+              - <a href="{{ url_for('book_room', room=room, date=date, slot_type=slot_type, start_time=start_time, end_time=end_time) }}">Book this room</a>
             {% endif %}
           </li>
         {% endfor %}

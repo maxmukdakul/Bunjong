@@ -114,11 +114,16 @@ def available():
     all_rooms = [f"Room {i}" for i in range(1, 11)]
     available_rooms = all_rooms
     selected_date = None
-    selected_time = None
+    slot_type = None
+    start_time = None
+    end_time = None
 
     if request.method == 'POST':
         selected_date = request.form['date']
-        selected_time = request.form['time']
+        slot_type = request.form['slot_type']
+        start_time = request.form['start_time']
+        end_time = request.form['end_time']
+        selected_time = f"{slot_type}|{start_time}-{end_time}"
         booked_rooms = set()
 
         with open('bookings.csv', 'r') as f:
@@ -129,27 +134,38 @@ def available():
 
         available_rooms = [room for room in all_rooms if room not in booked_rooms]
 
-    return render_template('available.html', rooms=available_rooms, date=selected_date, time=selected_time)
+    return render_template(
+        'available.html',
+        rooms=available_rooms,
+        date=selected_date,
+        slot_type=slot_type,
+        start_time=start_time,
+        end_time=end_time
+    )
 
-@app.route('/book', methods=['GET', 'POST'])
+@app.route('/book_room', methods=['GET', 'POST'])
 def book_room():
     if 'username' not in session:
         return redirect(url_for('login'))
 
     room = request.args.get('room')
     date = request.args.get('date')
-    time = request.args.get('time')
+    slot_type = request.args.get('slot_type')
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
 
-    if not room or not date or not time:
+    if not room or not date or not slot_type or not start_time or not end_time:
         return "Missing booking information. Please start from the available rooms page.", 400
+
+    selected_time = f"{slot_type}|{start_time}-{end_time}"
 
     if request.method == 'POST':
         name = request.form['name']
         phone = request.form['phone']
         people = request.form['people']
-        sales = request.form['sales']   # <-- Get the sales person's name as string
+        sales = request.form['sales']
 
-        booking_data = [date, name, room, phone, people, time, sales]
+        booking_data = [date, name, room, phone, people, selected_time, sales]
         file_exists = os.path.isfile('bookings.csv')
         write_header = not file_exists or os.stat('bookings.csv').st_size == 0
 
@@ -159,9 +175,16 @@ def book_room():
                 writer.writerow(['date', 'name', 'room', 'phone_num', 'people_num', 'time', 'sales'])
             writer.writerow(booking_data)
 
-        return redirect(url_for('available'))
+        return redirect(url_for('index'))
 
-    return render_template('book_form.html', room=room, date=date, time=time)
+    return render_template(
+        'book_form.html',
+        room=room,
+        date=date,
+        slot_type=slot_type,
+        start_time=start_time,
+        end_time=end_time
+    )
 
 
 if __name__ == '__main__':
