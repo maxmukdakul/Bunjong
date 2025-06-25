@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Booked Rooms by Date</title>
+</head>
+<body>
+  <h1>Booked Rooms by Date</h1>
+
+  <form method="POST">
+    <label for="date">Select a date:</label>
+    <input type="date" name="date" required>
+    <button type="submit">Search</button>
+  </form>
+
+  {% if date %}
+    <h2>Bookings on {{ date }}:</h2>
+    {% if bookings %}
+      <table border="1" cellpadding="5" cellspacing="0">
+        <tr>
+          <th>Room</th>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>People</th>
+          <th>Slot Type</th>
+          <th>Time</th>
+          <th>Sales</th>
+          {% if session.role == 'admin' %}
+          <th>Action</th>
+          {% endif %}
+        </tr>
+        {% for row in bookings %}
+        <tr>
+          <td>{{ row.room }}</td>
+          <td>{{ row.name }}</td>
+          <td>{{ row.phone_num }}</td>
+          <td>{{ row.people_num }}</td>
+          <td>{{ row.slot_type }}</td>
+          <td>{{ row.time }}</td>
+          <td>{{ row.sales }}</td>
+          {% if session.role == 'admin' %}
+            <td>
+              <a href="{{ url_for('edit_booking', booking_id=row.booking_id) }}">✏ Edit</a> |
+              <form action="{{ url_for('delete_booking', booking_id=row.booking_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this booking?');">
+                <button type="submit" style="background:none; border:none; color:red; cursor:pointer;">🗑 Delete</button>
+              </form>
+            </td>
+          {% endif %}
+
+        </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p>No bookings found on this date.</p>
+    {% endif %}
+  {% endif %}
+
+  <p><a href="{{ url_for('index') }}">⬅ Back to Home</a></p>
+</body>
+</html>

@@ -6,7 +6,6 @@
 <body>
   <h1>Book {{ room }}</h1>
   <p>Date: {{ date }}</p>
-  <p>Time: {{ time }}</p>
 
   <form method="POST">
       <label>Your name:</label>
@@ -21,9 +20,44 @@
       <label>Sales (staff name):</label>
       <input type="text" name="sales" required><br>
 
+      <label>Slot Type:</label>
+      <select name="slot_type" required>
+        <option value="half_morning">Half Morning</option>
+        <option value="half_afternoon">Half Afternoon</option>
+        <option value="fullday">Full Day</option>
+        <option value="night">Night</option>
+      </select><br><br>
+
+      <label>Time (auto-filled):</label>
+      <input type="text" name="time" value="{{ time or '' }}" required readonly><br><br>
+
       <button type="submit">Confirm Booking</button>
   </form>
 
   <p><a href="{{ url_for('available') }}">⬅ Back to Available Rooms</a></p>
+
+  <script>
+    const slotToTime = {
+      'half_morning': '08.00-12.00',
+      'half_afternoon': '13.00-17.00',
+      'fullday': '08.00-17.00',
+      'night': '18.00-22.00'
+    };
+
+    const slotSelect = document.querySelector('select[name="slot_type"]');
+    const timeInput = document.querySelector('input[name="time"]');
+
+    if (slotSelect && timeInput) {
+      slotSelect.addEventListener('change', function () {
+        const selectedSlot = this.value;
+        if (slotToTime[selectedSlot]) {
+          timeInput.value = slotToTime[selectedSlot];
+        }
+      });
+
+      // Initialize time input on page load
+      timeInput.value = slotToTime[slotSelect.value];
+    }
+  </script>
 </body>
 </html>

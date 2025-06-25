@@ -8,34 +8,28 @@
 
   <form method="POST">
     <label for="date">Select a date:</label>
-    <input type="date" name="date" required>
+    <input type="date" name="date" required value="{{ date }}">
 
     <label for="slot_type">Select slot type:</label>
     <select name="slot_type" id="slot_type" required>
-      <option value="half_morning">Half Morning</option>
-      <option value="half_afternoon">Half Afternoon</option>
-      <option value="fullday">Full Day</option>
-      <option value="night">Night</option>
+      <option value="half_morning|08.00-12.00" {% if slot_type == 'half_morning|08.00-12.00' %}selected{% endif %}>Half Morning</option>
+      <option value="half_afternoon|13.00-17.00" {% if slot_type == 'half_afternoon|13.00-17.00' %}selected{% endif %}>Half Afternoon</option>
+      <option value="fullday|08.00-17.00" {% if slot_type == 'fullday|08.00-17.00' %}selected{% endif %}>Full Day</option>
+      <option value="night|18.00-22.00" {% if slot_type == 'night|18.00-22.00' %}selected{% endif %}>Night</option>
     </select>
-
-    <label for="start_time">From:</label>
-    <input type="text" name="start_time" placeholder="08.00" required>
-
-    <label for="end_time">To:</label>
-    <input type="text" name="end_time" placeholder="12.00" required>
 
     <button type="submit">Search</button>
   </form>
 
-  {% if date and slot_type and start_time and end_time %}
-    <h2>Available Rooms on {{ date }} ({{ slot_type }}) from {{ start_time }} to {{ end_time }}:</h2>
+  {% if date and slot_type %}
+    <h2>Available Rooms on {{ date }} ({{ slot_type.split('|')[0] }}):</h2>
     {% if rooms %}
       <ul>
         {% for room in rooms %}
           <li>
             {{ room }}
             {% if session.role == 'admin' %}
-              - <a href="{{ url_for('book_room', room=room, date=date, slot_type=slot_type, start_time=start_time, end_time=end_time) }}">Book this room</a>
+              - <a href="{{ url_for('book_room', room=room, date=date, slot_type=slot_type) }}">Book this room</a>
             {% endif %}
           </li>
         {% endfor %}
@@ -46,5 +40,21 @@
   {% endif %}
 
   <p><a href="{{ url_for('index') }}">⬅ Back to Home</a></p>
+
+  <script>
+    const slotToTime = {
+      'half_morning': '08.00-12.00',
+      'half_afternoon': '13.00-17.00',
+      'fullday': '08.00-17.00',
+      'night': '18.00-22.00'
+    };
+
+    const slotSelect = document.getElementById('slot_type');
+    slotSelect.addEventListener('change', function () {
+      const [slot] = this.value.split('|');
+      const timeDisplay = slotToTime[slot] || '';
+      alert("This slot time is: " + timeDisplay);
+    });
+  </script>
 </body>
 </html>

@@ -6,17 +6,19 @@ app = Flask(__name__, template_folder='room/templates')
 app.secret_key = 'your_secret_key_here'
 
 USERS_FILE = 'users.csv'
+BOOKINGS_FILE = 'bookings.csv'
 
 # Load users from CSV
 def load_users():
     users = {}
-    with open(USERS_FILE, 'r') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            users[row['username']] = {
-                'password': row['password'],
-                'role': row['role']
-            }
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                users[row['username']] = {
+                    'password': row['password'],
+                    'role': row['role']
+                }
     return users
 
 # Save a new user
@@ -25,8 +27,17 @@ def save_user(username, password, role):
     with open(USERS_FILE, 'a', newline='') as f:
         writer = csv.writer(f)
         if not file_exists or os.stat(USERS_FILE).st_size == 0:
-            writer.writerow(['username', 'password', 'role'])  # write header if file is empty
+            writer.writerow(['username', 'password', 'role'])
         writer.writerow([username, password, role])
+
+# Save a booking
+def save_booking(date, name, room, phone_num, people_num, slot_type, time, sales):
+    file_exists = os.path.exists(BOOKINGS_FILE)
+    with open(BOOKINGS_FILE, 'a', newline='') as f:
+        writer = csv.writer(f)
+        if not file_exists or os.stat(BOOKINGS_FILE).st_size == 0:
+            writer.writerow(['date', 'name', 'room', 'phone_num', 'people_num', 'slot_type', 'time', 'sales'])
+        writer.writerow([date, name, room, phone_num, people_num, slot_type, time, sales if sales else ""])
 
 @app.route('/')
 def home():
@@ -36,18 +47,17 @@ def home():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    users = load_users()  # dict with username: {'password': ..., 'role': ...}
+    users = load_users()
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
 
         if username in users and users[username]['password'] == password:
             session['username'] = username
-            session['role'] = users[username]['role']  # ✅ Save role into session
+            session['role'] = users[username]['role']
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error='Invalid credentials')
-
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -60,9 +70,8 @@ def register():
         if username in users:
             return render_template('register.html', error='Username already exists')
         else:
-            save_user(username, password, 'user')  # Always saved as 'user'
+            save_user(username, password, 'user')
             return redirect(url_for('login'))
-
     return render_template('register.html')
 
 @app.route('/logout')
@@ -87,11 +96,13 @@ def room(room_number):
 
     if request.method == 'POST':
         selected_date = request.form['date']
-        with open('bookings.csv', 'r') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row['date'] == selected_date and row['room'] == room_name:
-                    results.append(row)
+        if os.path.exists(BOOKINGS_FILE):
+            with open(BOOKINGS_FILE, 'r') as f:
+                reader = csv.DictReader(f)
+                for idx, row in enumerate(reader):
+                    if row['date'] == selected_date and row['room'] == room_name:
+                        row['booking_id'] = idx  # Add booking_id here
+                        results.append(row)
 
     return render_template(f'room{room_number}.html', results=results, date=selected_date, room=room_name)
 
@@ -100,50 +111,46 @@ def search():
     results = []
     if request.method == 'POST':
         search_date = request.form['date']
-        with open('bookings.csv', 'r') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row['date'] == search_date:
-                    results.append(row)
+        if os.path.exists(BOOKINGS_FILE):
+            with open(BOOKINGS_FILE, 'r') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row['date'] == search_date:
+                        results.append(row)
     return render_template('search.html', results=results)
 
 @app.route('/available', methods=['GET', 'POST'])
 def available():
     all_rooms = [f"Room {i}" for i in range(1, 11)]
-    available_rooms = all_rooms
-    selected_date = None
-    slot_type = None
-    start_time = None
-    end_time = None
+    available_rooms = all_rooms.copy()
+    selected_date = slot_type_full = slot_type = ""
+    time_range = ""
 
     if request.method == 'POST':
-        selected_date = request.form['date']
-        slot_type = request.form['slot_type']
-        start_time = request.form['start_time']
-        end_time = request.form['end_time']
-        time_range = f"{start_time}-{end_time}"
-        booked_rooms = set()
+        selected_date = request.form['date'].strip()
+        slot_type_full = request.form['slot_type'].strip()
 
-        with open('bookings.csv', 'r') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if (
-                    row['date'] == selected_date and
-                    row['slot_type'] == slot_type and
-                    row['time'] == time_range
-                ):
-                    booked_rooms.add(row['room'])
+        if '|' in slot_type_full:
+            slot_type, time_range = slot_type_full.split('|')
 
-        available_rooms = [room for room in all_rooms if room not in booked_rooms]
+            booked_rooms = set()
+            if os.path.exists(BOOKINGS_FILE):
+                with open(BOOKINGS_FILE, 'r') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        if row['date'].strip() == selected_date and row['slot_type'].strip() == slot_type:
+                            booked_rooms.add(row['room'].strip())
+
+            available_rooms = [room for room in all_rooms if room not in booked_rooms]
 
     return render_template(
         'available.html',
         rooms=available_rooms,
         date=selected_date,
-        slot_type=slot_type,
-        start_time=start_time,
-        end_time=end_time
+        slot_type=slot_type_full,
+        time_range=time_range
     )
+
 
 @app.route('/book_room', methods=['GET', 'POST'])
 def book_room():
@@ -153,13 +160,11 @@ def book_room():
     room = request.args.get('room')
     date = request.args.get('date')
     slot_type = request.args.get('slot_type')
-    start_time = request.args.get('start_time')
-    end_time = request.args.get('end_time')
 
-    if not room or not date or not slot_type or not start_time or not end_time:
+    if not room or not date or not slot_type:
         return "Missing booking information. Please start from the available rooms page.", 400
 
-    time_range = f"{start_time}-{end_time}"
+    time_range = slot_type.split('|')[1]  # extract time part
     error = None
 
     if request.method == 'POST':
@@ -168,39 +173,36 @@ def book_room():
         people = request.form['people']
         sales = request.form['sales']
 
-        # Check for double booking before saving
+        # Check for double booking
         is_already_booked = False
-        if os.path.isfile('bookings.csv'):
-            with open('bookings.csv', 'r', newline='') as f:
+        if os.path.exists(BOOKINGS_FILE):
+            with open(BOOKINGS_FILE, 'r', newline='') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     if (
                         row['date'] == date and
                         row['room'] == room and
-                        row['slot_type'] == slot_type and
-                        row['time'] == time_range
+                        row['slot_type'] == slot_type.split('|')[0]
                     ):
                         is_already_booked = True
                         break
 
         if is_already_booked:
-            error = "This room is already booked for the selected date and time slot."
+            error = "This room is already booked for the selected date and slot type."
             return render_template(
                 'book_form.html',
                 room=room,
                 date=date,
                 slot_type=slot_type,
-                start_time=start_time,
-                end_time=end_time,
+                time_range=time_range,
                 error=error
             )
 
-        # SAVE DATA IN THE CORRECT ORDER
-        booking_data = [date, name, room, phone, people, slot_type, time_range, sales]
-        file_exists = os.path.isfile('bookings.csv')
-        write_header = not file_exists or os.stat('bookings.csv').st_size == 0
+        booking_data = [date, name, room, phone, people, slot_type.split('|')[0], time_range, sales]
+        file_exists = os.path.exists(BOOKINGS_FILE)
+        write_header = not file_exists or os.stat(BOOKINGS_FILE).st_size == 0
 
-        with open('bookings.csv', 'a', newline='') as f:
+        with open(BOOKINGS_FILE, 'a', newline='') as f:
             writer = csv.writer(f)
             if write_header:
                 writer.writerow(['date', 'name', 'room', 'phone_num', 'people_num', 'slot_type', 'time', 'sales'])
@@ -213,13 +215,114 @@ def book_room():
         room=room,
         date=date,
         slot_type=slot_type,
-        start_time=start_time,
-        end_time=end_time,
+        time_range=time_range,
         error=error
     )
 
+@app.route('/edit_booking/<int:booking_id>', methods=['GET', 'POST'])
+def edit_booking(booking_id):
+    if 'username' not in session or session.get('role') != 'admin':
+        return "Access denied", 403
+
+    if not os.path.exists(BOOKINGS_FILE):
+        return "Booking file not found", 404
+
+    with open(BOOKINGS_FILE, 'r', newline='') as f:
+        reader = csv.DictReader(f)
+        bookings = list(reader)
+
+    if booking_id < 0 or booking_id >= len(bookings):
+        return "Booking not found", 404
+
+    booking = bookings[booking_id]
+    error = None
+
+    if request.method == 'POST':
+        # Get new values from form
+        new_date = request.form['date']
+        new_name = request.form['name']
+        new_phone = request.form['phone']
+        new_people = request.form['people']
+        new_slot_type = request.form['slot_type']
+        new_time = request.form['time']
+        new_sales = request.form['sales']
+        new_room = request.form['room']
+
+        # Check if that room is already booked for new date and slot_type (ignore current booking)
+        for i, row in enumerate(bookings):
+            if i != booking_id and row['date'] == new_date and row['slot_type'] == new_slot_type and row['room'] == new_room:
+                error = "The selected room is already booked for that date and slot type."
+                break
+
+        if not error:
+            # Update booking fields
+            booking['date'] = new_date
+            booking['name'] = new_name
+            booking['phone_num'] = new_phone
+            booking['people_num'] = new_people
+            booking['slot_type'] = new_slot_type
+            booking['time'] = new_time
+            booking['sales'] = new_sales
+            booking['room'] = new_room
+
+            with open(BOOKINGS_FILE, 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=booking.keys())
+                writer.writeheader()
+                writer.writerows(bookings)
+
+            return redirect(url_for('index'))
+
+    return render_template('edit_booking.html', booking=booking, booking_id=booking_id, error=error)
+
+
+@app.route('/booked_rooms', methods=['GET', 'POST'])
+def booked_rooms():
+    bookings = []
+    selected_date = None
+
+    if request.method == 'POST':
+        selected_date = request.form['date']
+        if os.path.exists(BOOKINGS_FILE):
+            with open(BOOKINGS_FILE, 'r') as f:
+                reader = csv.DictReader(f)
+                for idx, row in enumerate(reader):
+                    if row['date'].strip() == selected_date.strip():
+                        row['booking_id'] = idx
+                        bookings.append(row)
+
+        # Sort bookings by room number (Room 1 to Room 10)
+        bookings.sort(key=lambda x: int(x['room'].split()[-1]))
+
+    return render_template('booked_rooms.html', date=selected_date, bookings=bookings)
+
+@app.route('/delete_booking/<int:booking_id>', methods=['POST'])
+def delete_booking(booking_id):
+    if 'username' not in session or session.get('role') != 'admin':
+        return "Access denied", 403
+
+    if not os.path.exists(BOOKINGS_FILE):
+        return "Booking file not found", 404
+
+    with open(BOOKINGS_FILE, 'r', newline='') as f:
+        reader = csv.DictReader(f)
+        bookings = list(reader)
+
+    if booking_id < 0 or booking_id >= len(bookings):
+        return "Booking not found", 404
+
+    # Remove the booking at booking_id
+    bookings.pop(booking_id)
+
+    # Rewrite the CSV without the deleted booking
+    with open(BOOKINGS_FILE, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=['date', 'name', 'room', 'phone_num', 'people_num', 'slot_type', 'time', 'sales'])
+        writer.writeheader()
+        writer.writerows(bookings)
+
+    return redirect(url_for('booked_rooms'))
+
+
 if __name__ == '__main__':
-    # If users.csv doesn't exist, create it with headers
     if not os.path.exists(USERS_FILE):
         with open(USERS_FILE, 'w', newline='') as f:
             writer = csv.writer(f)

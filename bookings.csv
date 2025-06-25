@@ -1,7 +1,3 @@
 date,name,room,phone_num,people_num,slot_type,time,sales
-2025-06-27,ju,Room 1,0675555555,50,half_morning,08.00-12.00,Ju
-2025-06-28,ju,Room 4,0675555555,50,half_morning,08.00-12.00,Ju
-2025-06-30,ju,Room 9,0675555555,50,half_morning,08.00-12.00,Ju
-2025-06-28,ju,Room 5,0675555555,50,half_morning,08.00-12.00,Ju
-2025-06-20,ju,Room 6,0675555555,50,half_morning|08.00-12.00,Ju
-2025-06-20,ju,Room 2,0675555555,50,half_morning|08.00-12.00,Ju
+2025-06-27,ju,Room 3,0675555555,100,half_morning,08.00-12.00,Ju
+2025-06-27,ju,Room 4,0675555555,50,half_morning,08.00-12.00,Ju
