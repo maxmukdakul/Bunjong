@@ -7,6 +7,10 @@
   <h1>Book {{ room }}</h1>
   <p>Date: {{ date }}</p>
 
+  {% if error %}
+    <p style="color:red;">{{ error }}</p>
+  {% endif %}
+
   <form method="POST">
       <label>Your name:</label>
       <input type="text" name="name" required><br>
@@ -21,28 +25,31 @@
       <input type="text" name="sales" required><br>
 
       <label>Slot Type:</label>
-      <select name="slot_type" required>
-        <option value="half_morning">Half Morning</option>
-        <option value="half_afternoon">Half Afternoon</option>
-        <option value="fullday">Full Day</option>
-        <option value="night">Night</option>
+      <select name="slot_type" required disabled>
+        <option value="half_morning" {% if slot_type == 'half_morning' %}selected{% endif %}>Half Morning</option>
+        <option value="half_afternoon" {% if slot_type == 'half_afternoon' %}selected{% endif %}>Half Afternoon</option>
+        <option value="fullday" {% if slot_type == 'fullday' %}selected{% endif %}>Full Day</option>
+        <option value="night" {% if slot_type == 'night' %}selected{% endif %}>Night</option>
       </select><br><br>
 
       <label>Time (auto-filled):</label>
-      <input type="text" name="time" value="{{ time or '' }}" required readonly><br><br>
+      <input type="text" name="time" value="{{ time_range or '' }}" required readonly><br><br>
 
       <label>Work Name:</label>
-      <input type="text" name="work_name"><br>
+      <input type="text" name="work_name" value="{{ work_name or '' }}"><br>
 
       <label>Remark:</label>
-      <textarea name="remark" rows="3" cols="30" placeholder="Optional..."></textarea><br>
-
+      <textarea name="remark" rows="3" cols="30" placeholder="Optional...">{{ remark or '' }}</textarea><br>
 
       <button type="submit">Confirm Booking</button>
   </form>
 
   <p><a href="{{ url_for('available') }}">⬅ Back to Available Rooms</a></p>
 
+  <!--
+    Script is kept but won't run because slot_type select is disabled.
+    Remove disabled attribute if you want user to change slot_type
+  -->
   <script>
     const slotToTime = {
       'half_morning': '08.00-12.00',
@@ -54,7 +61,7 @@
     const slotSelect = document.querySelector('select[name="slot_type"]');
     const timeInput = document.querySelector('input[name="time"]');
 
-    if (slotSelect && timeInput) {
+    if (slotSelect && timeInput && !slotSelect.disabled) {
       slotSelect.addEventListener('change', function () {
         const selectedSlot = this.value;
         if (slotToTime[selectedSlot]) {
@@ -62,7 +69,6 @@
         }
       });
 
-      // Initialize time input on page load
       timeInput.value = slotToTime[slotSelect.value];
     }
   </script>

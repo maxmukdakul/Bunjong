@@ -7,48 +7,52 @@
   <h1>Room 2 Booking Information</h1>
 
   <form method="POST">
-    <label id="date-label">Select date:</label>
-    <input type="date" name="date" id="date" required>
+    <label for="date">Filter by date (optional):</label>
+    <input type="date" name="date" id="date" value="{{ date or '' }}">
     <button type="submit">Show Bookings</button>
   </form>
 
-  {% if date %}
-    <h2>Bookings for Room 2 on {{ date }}</h2>
-    {% if results %}
-      <table border="1" cellpadding="5" cellspacing="0">
-        <tr>
-          <th>Name</th>
-          <th>Phone Number</th>
-          <th>People</th>
-          <th>Slot Type</th>
-          <th>Time</th>
-          <th>Sales</th>
-          {% if session.role == 'admin' %}
-          <th>Action</th>
-          {% endif %}
-        </tr>
-        {% for row in results %}
-        <tr>
-          <td>{{ row.name }}</td>
-          <td>{{ row.phone_num }}</td>
-          <td>{{ row.people_num }}</td>
-          <td>{{ row.slot_type }}</td>
-          <td>{{ row.time }}</td>
-          <td>{{ row.sales }}</td>
-          {% if session.role == 'admin' %}
-          <td>
-            <a href="{{ url_for('edit_booking', booking_id=row.booking_id) }}">✏ Edit</a>
-            <form method="POST" action="{{ url_for('delete_booking', booking_id=row.booking_id) }}" style="display:inline;">
-              <button type="submit" onclick="return confirm('Are you sure?')">🗑 Delete</button>
-            </form>
-          </td>
-          {% endif %}
-        </tr>
-        {% endfor %}
-      </table>
-    {% else %}
-      <p>No bookings found for Room 2 on {{ date }}.</p>
-    {% endif %}
+  {% if results %}
+    <h2>Bookings{% if date %} on {{ date }}{% endif %}</h2>
+    <table border="1" cellpadding="5" cellspacing="0">
+      <tr>
+        <th>Date</th>
+        <th>Name</th>
+        <th>Phone Number</th>
+        <th>People</th>
+        <th>Slot Type</th>
+        <th>Time</th>
+        <th>Sales</th>
+        <th>Work Name</th>
+        <th>Remark</th>
+        {% if session.role == 'admin' %}
+        <th>Action</th>
+        {% endif %}
+      </tr>
+      {% for row in results %}
+      <tr>
+        <td>{{ row.date }}</td>
+        <td>{{ row.name }}</td>
+        <td>{{ row.phone_num }}</td>
+        <td>{{ row.people_num }}</td>
+        <td>{{ row.slot_type }}</td>
+        <td>{{ row.time }}</td>
+        <td>{{ row.sales }}</td>
+        <td>{{ row.work_name or '-' }}</td>
+        <td>{{ row.remark or '-' }}</td>
+        {% if session.role == 'admin' %}
+        <td>
+          <a href="{{ url_for('edit_booking', booking_id=row.booking_id) }}">✏ Edit</a>
+          <form method="POST" action="{{ url_for('delete_booking', booking_id=row.booking_id) }}" style="display:inline;">
+            <button type="submit" onclick="return confirm('Are you sure?')">🗑 Delete</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>No bookings{% if date %} on {{ date }}{% else %} found.{% endif %}</p>
   {% endif %}
 
   <p><a href="{{ url_for('index') }}">⬅ Back to Room List</a></p>

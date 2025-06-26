@@ -42,7 +42,7 @@ def save_booking(date, name, room, phone_num, people_num, slot_type, time, sales
     file_exists = os.path.exists(BOOKINGS_FILE)
     write_header = not file_exists or os.stat(BOOKINGS_FILE).st_size == 0
 
-    with open(BOOKINGS_FILE, 'a', newline='') as f:
+    with open(BOOKINGS_FILE, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         if write_header:
             writer.writerow(['date', 'name', 'room', 'phone_num', 'people_num', 'slot_type', 'time', 'sales', 'work_name', 'remark'])
@@ -105,16 +105,19 @@ def room(room_number):
     room_name = f"Room {room_number}"
 
     if request.method == 'POST':
-        selected_date = request.form['date']
-        if os.path.exists(BOOKINGS_FILE):
-            with open(BOOKINGS_FILE, 'r') as f:
-                reader = csv.DictReader(f)
-                for idx, row in enumerate(reader):
-                    if row['date'] == selected_date and row['room'] == room_name:
-                        row['booking_id'] = idx  # Add booking_id here
+        selected_date = request.form['date'].strip()
+
+    if os.path.exists(BOOKINGS_FILE):
+        with open(BOOKINGS_FILE, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for idx, row in enumerate(reader):
+                if row['room'] == room_name:
+                    if not selected_date or row['date'].strip() == selected_date:
+                        row['booking_id'] = idx
                         results.append(row)
 
     return render_template(f'room{room_number}.html', results=results, date=selected_date, room=room_name)
+
 
 @app.route('/search', methods=['GET', 'POST'])
 def search():
@@ -122,7 +125,7 @@ def search():
     if request.method == 'POST':
         search_date = request.form['date']
         if os.path.exists(BOOKINGS_FILE):
-            with open(BOOKINGS_FILE, 'r') as f:
+            with open(BOOKINGS_FILE, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     if row['date'] == search_date:
@@ -145,11 +148,19 @@ def available():
 
             booked_rooms = set()
             if os.path.exists(BOOKINGS_FILE):
-                with open(BOOKINGS_FILE, 'r') as f:
+                with open(BOOKINGS_FILE, 'r', encoding='utf-8') as f:
                     reader = csv.DictReader(f)
                     for row in reader:
-                        if row['date'].strip() == selected_date and row['slot_type'].strip() == slot_type:
-                            booked_rooms.add(row['room'].strip())
+                        if row['date'].strip() == selected_date:
+                            existing_slot = row['slot_type'].strip()
+                            existing_start, existing_end = SLOT_TIMES.get(
+                                existing_slot, ("00.00", "00.00"))
+                            new_start, new_end = SLOT_TIMES.get(slot_type, (
+                            "00.00", "00.00"))
+
+                            if times_overlap(new_start, new_end,
+                                             existing_start, existing_end):
+                                booked_rooms.add(row['room'].strip())
 
             available_rooms = [room for room in all_rooms if room not in booked_rooms]
 
@@ -168,26 +179,35 @@ def book_room():
 
     room = request.args.get('room')
     date = request.args.get('date')
-    slot_type = request.args.get('slot_type')
-    work_name = request.form.get('work_name', '')
-    remark = request.form.get('remark', '')
+    slot_type_full = request.args.get('slot_type')
 
-    if not room or not date or not slot_type:
+    if not room or not date or not slot_type_full:
         return "Missing booking information. Please start from the available rooms page.", 400
 
-    time_range = slot_type.split('|')[1]
-    slot_key = slot_type.split('|')[0]
-    new_start, new_end = SLOT_TIMES[slot_key]
+    slot_key = ''
+    time_range = ''
+    new_start, new_end = "00.00", "00.00"
+
+    if slot_type_full and '|' in slot_type_full:
+        parts = slot_type_full.split('|')
+        if len(parts) == 2:
+            slot_key, time_range = parts
+            new_start, new_end = SLOT_TIMES.get(slot_key, ("00.00", "00.00"))
+
     error = None
 
     if request.method == 'POST':
-        name = request.form['name']
-        phone = request.form['phone']
-        people = request.form['people']
-        sales = request.form['sales']
+        name = request.form.get('name', '').strip()
+        phone = request.form.get('phone', '').strip()
+        people = request.form.get('people', '1').strip()
+        sales = request.form.get('sales', '').strip()
+        # Use the original room/date and slot_key to avoid tampering
+        work_name = request.form.get('work_name', '').strip()
+        remark = request.form.get('remark', '').strip()
 
+        # Check for overlapping booking in the same room/time
         if os.path.exists(BOOKINGS_FILE):
-            with open(BOOKINGS_FILE, 'r', newline='') as f:
+            with open(BOOKINGS_FILE, 'r', newline='', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     if row['date'] == date and row['room'] == room:
@@ -195,18 +215,21 @@ def book_room():
                         if times_overlap(new_start, new_end, existing_start, existing_end):
                             error = "This room is already booked at an overlapping time."
                             return render_template(
-                                'book_form.html', room=room, date=date, slot_type=slot_type,
-                                time_range=time_range, error=error
+                                'book_form.html', room=room, date=date,
+                                slot_type=slot_key, time_range=time_range,
+                                work_name=work_name, remark=remark,
+                                error=error
                             )
 
         save_booking(date, name, room, phone, people, slot_key, time_range, sales, work_name, remark)
         return redirect(url_for('index'))
 
+    # On GET request render with passed data
     return render_template(
         'book_form.html', room=room, date=date,
-        slot_type=slot_type, time_range=time_range, error=error
+        slot_type=slot_key, time_range=time_range,
+        work_name='', remark='', error=error
     )
-
 
 @app.route('/edit_booking/<int:booking_id>', methods=['GET', 'POST'])
 def edit_booking(booking_id):
@@ -216,7 +239,7 @@ def edit_booking(booking_id):
     if not os.path.exists(BOOKINGS_FILE):
         return "Booking file not found", 404
 
-    with open(BOOKINGS_FILE, 'r', newline='') as f:
+    with open(BOOKINGS_FILE, 'r', newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         bookings = list(reader)
 
@@ -259,7 +282,7 @@ def edit_booking(booking_id):
         booking['work_name'] = new_work_name
         booking['remark'] = new_remark if new_remark else "-"
 
-        with open(BOOKINGS_FILE, 'w', newline='') as f:
+        with open(BOOKINGS_FILE, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=['date', 'name', 'room', 'phone_num', 'people_num', 'slot_type', 'time', 'sales', 'work_name', 'remark'])
             writer.writeheader()
             writer.writerows(bookings)
@@ -277,7 +300,7 @@ def booked_rooms():
     if request.method == 'POST':
         selected_date = request.form['date']
         if os.path.exists(BOOKINGS_FILE):
-            with open(BOOKINGS_FILE, 'r') as f:
+            with open(BOOKINGS_FILE, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for idx, row in enumerate(reader):
                     if row['date'].strip() == selected_date.strip():
@@ -297,7 +320,7 @@ def delete_booking(booking_id):
     if not os.path.exists(BOOKINGS_FILE):
         return "Booking file not found", 404
 
-    with open(BOOKINGS_FILE, 'r', newline='') as f:
+    with open(BOOKINGS_FILE, 'r', newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         bookings = list(reader)
 
@@ -308,8 +331,11 @@ def delete_booking(booking_id):
     bookings.pop(booking_id)
 
     # Rewrite the CSV without the deleted booking
-    with open(BOOKINGS_FILE, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=['date', 'name', 'room', 'phone_num', 'people_num', 'slot_type', 'time', 'sales'])
+    with open(BOOKINGS_FILE, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=[
+            'date', 'name', 'room', 'phone_num', 'people_num',
+            'slot_type', 'time', 'sales', 'work_name', 'remark'
+        ])
         writer.writeheader()
         writer.writerows(bookings)
 
